@@ -21,8 +21,11 @@ Todo app on Next.js (App Router) + TypeScript. UI in `app/`, `components/`, `hoo
 | PATCH | /api/todos/:id | 200 `Todo` | 400, 404, 500 |
 | DELETE | /api/todos/:id | 204 | 404, 500 |
 | DELETE | /api/todos/completed | 200 `{deleted:number}` | 500 |
+| PATCH | /api/todos/reorder | 200 `Todo[]` | 400, 500 |
 
-Todo = `{ id, title, notes (max 500), completed, priority: low|medium|high, dueDate: YYYY-MM-DD|null, category (max 30), createdAt }`
+Todo = `{ id, title, notes (max 500), completed, priority: low|medium|high, dueDate: YYYY-MM-DD|null, category (max 30), subtasks: {id,title,completed}[] (max 50), recurrence: none|daily|weekly, order, createdAt }`
+
+Completing (`completed:true`) a task whose `recurrence` isn't `none` and has a `dueDate` auto-creates its next occurrence (dueDate +1 day for daily, +7 for weekly). This only fires on the transition to completed, not on other edits to an already-completed task — cover that in tests when touching this logic.
 
 ## Conventions
 - Validate input with `lib/validate.ts`; wrap every handler in `handle()` from `lib/http.ts`; errors are `{ error: string }`.

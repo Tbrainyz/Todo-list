@@ -1,17 +1,28 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTodos } from "@/hooks/useTodos";
+import { useReminders } from "@/hooks/useReminders";
 import { TodoForm } from "./TodoForm";
 import { TodoItem } from "./TodoItem";
 
-const RANK = { high: 0, medium: 1, low: 2 } as const;
 type Filter = "all" | "active" | "done";
 
 export default function TodoApp() {
-  const { todos, loading, error, add, update, remove, clearCompleted } = useTodos();
+  const { todos, loading, error, add, update, remove, clearCompleted, reorder } = useTodos();
+  const reminders = useReminders(todos);
   const [filter, setFilter] = useState<Filter>("all");
   const [category, setCategory] = useState("all");
   const [query, setQuery] = useState("");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const dragId = useRef<string | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    const initial = saved === "light" || saved === "dark" ? saved
+      : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    setTheme(initial);
+  }, []);
+  useEffect(() => { document.documentElement.setAttribute("data-theme", theme); localStorage.setItem("theme", theme); }, [theme]);
 
   const categories = useMemo(() => [...new Set(todos.map((t) => t.category))].sort(), [todos]);
   const done = todos.filter((t) => t.completed).length;
@@ -21,12 +32,37 @@ export default function TodoApp() {
     .filter((t) => (filter === "all" ? true : filter === "done" ? t.completed : !t.completed))
     .filter((t) => category === "all" || t.category === category)
     .filter((t) => t.title.toLowerCase().includes(query.trim().toLowerCase()))
-    .sort((a, b) => Number(a.completed) - Number(b.completed) || (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") || RANK[a.priority] - RANK[b.priority]),
+    .sort((a, b) => Number(a.completed) - Number(b.completed) || a.order - b.order),
     [todos, filter, category, query]);
+
+  const draggable = filter === "all" && category === "all" && !query.trim();
+
+  const onDrop = (targetId: string) => {
+    if (!dragId.current || dragId.current === targetId) return;
+    const ids = visible.map((t) => t.id);
+    const from = ids.indexOf(dragId.current), to = ids.indexOf(targetId);
+    if (from === -1 || to === -1) return;
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    reorder(ids);
+    dragId.current = null;
+  };
 
   return (
     <main className="wrap">
       <header className="hero">
+        <div className="hero-actions">
+          {reminders.supported && (
+            <button className="theme-toggle" onClick={reminders.toggle}
+              aria-label={reminders.enabled ? "Turn off due-date reminders" : "Turn on due-date reminders"}
+              aria-pressed={reminders.enabled} title={reminders.enabled ? "Reminders on" : "Reminders off"}>
+              {reminders.enabled ? "🔔" : "🔕"}
+            </button>
+          )}
+          <button className="theme-toggle" onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+            aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}>
+            {theme === "light" ? "\u{1F319}" : "\u{2600}\u{FE0F}"}
+          </button>
+        </div>
         <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
         <h1>Today</h1>
         <div className="progress" aria-label={`${pct}% complete`}><span style={{ width: `${pct}%` }} /></div>
@@ -54,7 +90,12 @@ export default function TodoApp() {
           <p>{todos.length ? "Try a different filter or search." : "Add your first task above to get started."}</p></div>
       ) : (
         <ul className="list card">
-          {visible.map((t) => <TodoItem key={t.id} todo={t} onUpdate={(p) => update(t.id, p)} onDelete={() => remove(t.id)} />)}
+          {visible.map((t) => (
+            <div key={t.id} onDragOver={(e) => draggable && e.preventDefault()} onDrop={() => draggable && onDrop(t.id)}>
+              <TodoItem todo={t} onUpdate={(p) => update(t.id, p)} onDelete={() => remove(t.id)}
+                dragHandleProps={draggable ? { draggable: true, onDragStart: () => { dragId.current = t.id; } } : undefined} />
+            </div>
+          ))}
         </ul>
       )}
 

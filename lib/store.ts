@@ -7,14 +7,20 @@ export interface TodoStore {
   update(id: string, patch: TodoPatch): Promise<Todo | undefined>;
   remove(id: string): Promise<boolean>;
   clearCompleted(): Promise<number>;
+  reorder(ids: string[]): Promise<Todo[]>;
 }
 
 /** In-memory store: used by tests and as a dev fallback. */
 export class MemoryTodoStore implements TodoStore {
   private todos = new Map<string, Todo>();
-  async list() { return [...this.todos.values()]; }
+  private nextOrder = 0;
+
+  async list() { return [...this.todos.values()].sort((a, b) => a.order - b.order); }
   async create(input: NewTodo) {
-    const todo: Todo = { id: randomUUID(), completed: false, createdAt: new Date().toISOString(), ...input };
+    const todo: Todo = {
+      id: randomUUID(), completed: false, subtasks: [], recurrence: "none",
+      order: this.nextOrder++, createdAt: new Date().toISOString(), ...input,
+    };
     this.todos.set(todo.id, todo);
     return todo;
   }
@@ -29,5 +35,9 @@ export class MemoryTodoStore implements TodoStore {
     let n = 0;
     for (const [id, t] of this.todos) if (t.completed) { this.todos.delete(id); n++; }
     return n;
+  }
+  async reorder(ids: string[]) {
+    ids.forEach((id, i) => { const t = this.todos.get(id); if (t) t.order = i; });
+    return this.list();
   }
 }

@@ -12,4 +12,5 @@ export const api = {
   update: (id: string, patch: TodoPatch) => call<Todo>(`/todos/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   remove: (id: string) => call<void>(`/todos/${id}`, { method: "DELETE" }),
   clearCompleted: () => call<{ deleted: number }>("/todos/completed", { method: "DELETE" }),
+  reorder: (order: string[]) => call<Todo[]>("/todos/reorder", { method: "PATCH", body: JSON.stringify({ order }) }),
 };

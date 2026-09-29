@@ -12,15 +12,28 @@ export function useTodos() {
     try { setError(null); await fn(); } catch (e) { setError((e as Error).message); }
   }, []);
 
-  useEffect(() => { run(async () => setTodos(await api.list())).finally(() => setLoading(false)); }, [run]);
+  const refresh = useCallback(() => run(async () => setTodos(await api.list())), [run]);
+  useEffect(() => { refresh().finally(() => setLoading(false)); }, [refresh]);
 
   const replace = (t: Todo) => setTodos((p) => p.map((x) => (x.id === t.id ? t : x)));
 
   return {
     todos, loading, error,
     add: (input: Partial<NewTodo> & { title: string }) => run(async () => { const t = await api.create(input); setTodos((p) => [...p, t]); }),
-    update: (id: string, patch: TodoPatch) => run(async () => replace(await api.update(id, patch))),
+    update: (id: string, patch: TodoPatch) => run(async () => {
+      const before = todos.find((t) => t.id === id);
+      const wasRecurring = before && !before.completed && patch.completed === true && before.recurrence !== "none" && before.dueDate;
+      replace(await api.update(id, patch));
+      if (wasRecurring) await refresh(); // pick up the auto-created next occurrence
+    }),
     remove: (id: string) => run(async () => { await api.remove(id); setTodos((p) => p.filter((x) => x.id !== id)); }),
     clearCompleted: () => run(async () => { await api.clearCompleted(); setTodos((p) => p.filter((x) => !x.completed)); }),
+    reorder: (ids: string[]) => {
+      setTodos((p) => {
+        const byId = new Map(p.map((t) => [t.id, t]));
+        return ids.map((id, i) => ({ ...byId.get(id)!, order: i }));
+      });
+      run(async () => { await api.reorder(ids); });
+    },
   };
 }
