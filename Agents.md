@@ -3,14 +3,18 @@
 Rules for any AI agent working in this repo.
 
 ## Project
-Todo app on Next.js (App Router) + TypeScript. UI in `app/`, `components/`, `hooks/`. API = route handlers in `app/api/`. Data in MongoDB (Mongoose), tests with Vitest.
+Todo app on Next.js (App Router) + TypeScript. UI in `app/`, `components/`, `hooks/`. Tests with Vitest.
+
+**Storage: browser-only right now.** The UI (`hooks/useTodos.ts`) talks to `lib/api.ts`, which currently re-exports `lib/localApi.ts` — every todo is read/written straight to `localStorage`, per device, with no login and no server involved. This is intentional: no auth, no shared list, each browser is private. `lib/localApi.ts` reuses the same validation (`lib/validate.ts`) and the same `Todo`/recurrence-rollover rules as the server API, so behaviour matches either way.
+
+The MongoDB-backed API routes in `app/api/todos/` (`lib/mongoStore.ts`, `lib/remoteApi.ts`) still exist and are still tested — the UI just isn't calling them at the moment. **To switch the app back to the shared database-backed API**, replace the contents of `lib/api.ts` with `export * from "./remoteApi";` and set `MONGODB_URI`. No other file needs to change. Do not delete `remoteApi.ts`, `mongoStore.ts`, or the `app/api/` routes to "clean up" — they're the on-ramp back to shared storage.
 
 ## Endpoint rules (mandatory)
-1. **Every endpoint you create or change MUST have tests** in `tests/`, in the same change.
-2. Tests cover the happy path AND edge cases: invalid input (400), unknown id (404), empty/whitespace values, wrong types, malformed JSON, and store failure (500).
-3. **Always validate the endpoint works before saying you are done**: run `npm test` (and `npm run typecheck`) and confirm both pass. Never claim an endpoint works without a passing run.
+1. **Every endpoint (`app/api/`) or storage function (`lib/localApi.ts`) you create or change MUST have tests** in `tests/`, in the same change. `lib/localApi.ts` has its own suite (`tests/localApi.test.ts`, jsdom) separate from the API route tests (`tests/api.test.ts`, node) — keep both in sync when validation rules or the `Todo` shape change.
+2. Tests cover the happy path AND edge cases: invalid input (400 / thrown error), unknown id (404 / thrown error), empty/whitespace values, wrong types, malformed JSON, and store failure (500).
+3. **Always validate the change works before saying you are done**: run `npm test` (and `npm run typecheck`) and confirm both pass. Never claim something works without a passing run.
 4. If a test fails, fix the code (or the test if the test is wrong) and re-run. Never skip, delete, or weaken tests to get green.
-5. Update the endpoint table below when adding or changing routes.
+5. Update the endpoint table below when adding or changing API routes.
 
 ## Endpoints
 | Method | Path | Success | Errors |
@@ -30,6 +34,8 @@ Completing (`completed:true`) a task whose `recurrence` isn't `none` and has a `
 ## Conventions
 - Validate input with `lib/validate.ts`; wrap every handler in `handle()` from `lib/http.ts`; errors are `{ error: string }`.
 - Storage goes through the `TodoStore` interface (`lib/store.ts`). `MongoTodoStore` is used when `MONGODB_URI` is set; tests inject `MemoryTodoStore` via `setStore()`. Never put secrets in code; use `.env.local`.
+- Icons use `lucide-react` (already a dependency) — do not fall back to emoji or text glyphs for controls.
+- Destructive actions (deleting a task) must go through `components/ConfirmDialog.tsx` — never delete directly on a single click.
 - Client components need `"use client"`. API calls live in `lib/api.ts`; data logic in `hooks/`.
 - Form/UI changes need a component test in `tests/*.test.tsx` (jsdom + Testing Library); buttons must never be silently disabled, show a hint instead.
 - Keep `npm test` fast and independent of external services.

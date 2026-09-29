@@ -1,16 +1,6 @@
-import type { NewTodo, Todo, TodoPatch } from "./types";
-
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, { headers: { "Content-Type": "application/json" }, ...init });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Something went wrong");
-  return res.status === 204 ? (undefined as T) : res.json();
-}
-
-export const api = {
-  list: () => call<Todo[]>("/todos"),
-  create: (input: Partial<NewTodo> & { title: string }) => call<Todo>("/todos", { method: "POST", body: JSON.stringify(input) }),
-  update: (id: string, patch: TodoPatch) => call<Todo>(`/todos/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
-  remove: (id: string) => call<void>(`/todos/${id}`, { method: "DELETE" }),
-  clearCompleted: () => call<{ deleted: number }>("/todos/completed", { method: "DELETE" }),
-  reorder: (order: string[]) => call<Todo[]>("/todos/reorder", { method: "PATCH", body: JSON.stringify({ order }) }),
-};
+// Active storage backend for the app. Currently browser-only (see lib/localApi.ts):
+// each device keeps its own todos in localStorage, so no login is needed and
+// people never see each other's list. To go back to the shared MongoDB-backed
+// API in app/api/todos/ instead, replace this file's contents with:
+//   export * from "./remoteApi";
+export * from "./localApi";

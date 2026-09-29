@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
+import { GripVertical, ListChecks, Pencil, Repeat, Trash2, X } from "lucide-react";
 import type { Subtask, Todo, TodoPatch } from "@/lib/types";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const label = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -17,6 +19,7 @@ export function TodoItem({
   const [notes, setNotes] = useState(todo.notes);
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const overdue = !!todo.dueDate && !todo.completed && todo.dueDate < today();
   const doneCount = todo.subtasks.filter((s) => s.completed).length;
 
@@ -42,7 +45,11 @@ export function TodoItem({
   return (
     <li className={`item ${todo.priority} ${todo.completed ? "done" : ""}`}>
       <div className="item-row">
-        {dragHandleProps && <button type="button" className="drag-handle" aria-label={`Reorder "${todo.title}"`} {...dragHandleProps}>⠿</button>}
+        {dragHandleProps && (
+          <button type="button" className="icon-btn drag-handle" aria-label={`Reorder "${todo.title}"`} {...dragHandleProps}>
+            <GripVertical size={16} />
+          </button>
+        )}
         <input type="checkbox" className="check" checked={todo.completed} onChange={() => onUpdate({ completed: !todo.completed })}
           aria-label={`Mark "${todo.title}" as done`} />
         <div className="item-main">
@@ -52,8 +59,8 @@ export function TodoItem({
                 onKeyDown={(e) => { if (e.key === "Enter") save(); }} aria-label="Edit title" />
               <textarea className="edit" rows={2} value={notes} maxLength={500} placeholder="Notes" onChange={(e) => setNotes(e.target.value)} aria-label="Edit notes" />
               <div className="edit-actions">
-                <button className="btn-small primary" onClick={save}>Save</button>
-                <button className="btn-small" onClick={() => setEditing(false)}>Cancel</button>
+                <button type="button" className="btn-small primary" onClick={save}>Save</button>
+                <button type="button" className="btn-small" onClick={() => setEditing(false)}>Cancel</button>
               </div>
             </div>
           ) : (
@@ -66,10 +73,11 @@ export function TodoItem({
             <span className={`chip prio ${todo.priority}`}>{todo.priority}</span>
             <span className="chip">{todo.category}</span>
             {todo.dueDate && <span className={`chip ${overdue ? "overdue" : ""}`}>{overdue ? "Overdue · " : "Due "}{label(todo.dueDate)}</span>}
-            {todo.recurrence !== "none" && <span className="chip">↻ {todo.recurrence}</span>}
+            {todo.recurrence !== "none" && <span className="chip chip-icon"><Repeat size={12} /> {todo.recurrence}</span>}
             {todo.subtasks.length > 0 && (
-              <button type="button" className="chip chip-btn" onClick={() => setShowSubtasks((s) => !s)}>
-                ☑ {doneCount}/{todo.subtasks.length}
+              <button type="button" className="chip chip-icon chip-btn" onClick={() => setShowSubtasks((s) => !s)}
+                aria-label={`${doneCount} of ${todo.subtasks.length} subtasks complete, ${showSubtasks ? "hide" : "show"} list`}>
+                <ListChecks size={13} /> {doneCount}/{todo.subtasks.length}
               </button>
             )}
           </div>
@@ -81,7 +89,9 @@ export function TodoItem({
                     <li key={s.id} className="subtask">
                       <input type="checkbox" checked={s.completed} onChange={() => toggleSubtask(s.id)} aria-label={`Mark subtask "${s.title}" done`} />
                       <span className={s.completed ? "sub-done" : ""}>{s.title}</span>
-                      <button type="button" className="icon-btn tiny" onClick={() => removeSubtask(s.id)} aria-label={`Remove subtask "${s.title}"`}>✕</button>
+                      <button type="button" className="icon-btn tiny" onClick={() => removeSubtask(s.id)} aria-label={`Remove subtask "${s.title}"`}>
+                        <X size={13} />
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -94,9 +104,24 @@ export function TodoItem({
             </div>
           )}
         </div>
-        {!editing && <button className="icon-btn" onClick={start} aria-label={`Edit "${todo.title}"`}>Edit</button>}
-        <button className="icon-btn" onClick={onDelete} aria-label={`Delete "${todo.title}"`}>✕</button>
+        {!editing && (
+          <button type="button" className="icon-btn" onClick={start} aria-label={`Edit "${todo.title}"`}>
+            <Pencil size={15} />
+          </button>
+        )}
+        <button type="button" className="icon-btn danger" onClick={() => setConfirmDelete(true)} aria-label={`Delete "${todo.title}"`}>
+          <Trash2 size={15} />
+        </button>
       </div>
+      <ConfirmDialog
+        open={confirmDelete}
+        title={`Delete "${todo.title}"?`}
+        description="This can't be undone."
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => { onDelete(); setConfirmDelete(false); }}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </li>
   );
 }

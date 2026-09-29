@@ -48,7 +48,7 @@ describe("TodoItem subtasks", () => {
     const onUpdate = vi.fn();
     const t = todo({ subtasks: [{ id: "s1", title: "Step 1", completed: false }, { id: "s2", title: "Step 2", completed: false }] });
     render(<TodoItem todo={t} onUpdate={onUpdate} onDelete={() => {}} />);
-    await userEvent.click(screen.getByRole("button", { name: /☑/ }));
+    await userEvent.click(screen.getByRole("button", { name: /subtasks complete/i }));
     await userEvent.click(screen.getByRole("checkbox", { name: 'Mark subtask "Step 1" done' }));
     expect(onUpdate).toHaveBeenCalledWith({
       subtasks: [{ id: "s1", title: "Step 1", completed: true }, { id: "s2", title: "Step 2", completed: false }],
@@ -58,8 +58,43 @@ describe("TodoItem subtasks", () => {
     const onUpdate = vi.fn();
     const t = todo({ subtasks: [{ id: "s1", title: "Step 1", completed: false }] });
     render(<TodoItem todo={t} onUpdate={onUpdate} onDelete={() => {}} />);
-    await userEvent.click(screen.getByRole("button", { name: /☑/ }));
+    await userEvent.click(screen.getByRole("button", { name: /subtasks complete/i }));
     await userEvent.click(screen.getByLabelText('Remove subtask "Step 1"'));
     expect(onUpdate).toHaveBeenCalledWith({ subtasks: [] });
+  });
+});
+
+describe("TodoItem delete confirmation", () => {
+  it("clicking delete opens a confirm dialog instead of deleting immediately", async () => {
+    const onDelete = vi.fn();
+    render(<TodoItem todo={todo()} onUpdate={() => {}} onDelete={onDelete} />);
+    await userEvent.click(screen.getByRole("button", { name: 'Delete "Buy milk"' }));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+    expect(screen.getByText('Delete "Buy milk"?')).toBeTruthy();
+  });
+  it("Cancel closes the dialog without deleting", async () => {
+    const onDelete = vi.fn();
+    render(<TodoItem todo={todo()} onUpdate={() => {}} onDelete={onDelete} />);
+    await userEvent.click(screen.getByRole("button", { name: 'Delete "Buy milk"' }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+  it("confirming Delete calls onDelete exactly once and closes the dialog", async () => {
+    const onDelete = vi.fn();
+    render(<TodoItem todo={todo()} onUpdate={() => {}} onDelete={onDelete} />);
+    await userEvent.click(screen.getByRole("button", { name: 'Delete "Buy milk"' }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+  it("Escape closes the dialog without deleting", async () => {
+    const onDelete = vi.fn();
+    render(<TodoItem todo={todo()} onUpdate={() => {}} onDelete={onDelete} />);
+    await userEvent.click(screen.getByRole("button", { name: 'Delete "Buy milk"' }));
+    await userEvent.keyboard("{Escape}");
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 });

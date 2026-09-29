@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Bell, BellOff, Moon, Sun } from "lucide-react";
 import { useTodos } from "@/hooks/useTodos";
 import { useReminders } from "@/hooks/useReminders";
 import { TodoForm } from "./TodoForm";
@@ -55,12 +56,12 @@ export default function TodoApp() {
             <button className="theme-toggle" onClick={reminders.toggle}
               aria-label={reminders.enabled ? "Turn off due-date reminders" : "Turn on due-date reminders"}
               aria-pressed={reminders.enabled} title={reminders.enabled ? "Reminders on" : "Reminders off"}>
-              {reminders.enabled ? "🔔" : "🔕"}
+              {reminders.enabled ? <Bell size={17} /> : <BellOff size={17} />}
             </button>
           )}
           <button className="theme-toggle" onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
             aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}>
-            {theme === "light" ? "\u{1F319}" : "\u{2600}\u{FE0F}"}
+            {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
           </button>
         </div>
         <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
